@@ -1,5 +1,5 @@
 # stonkScreener
-Scrape all data from finviz
+Scrape all data from yahoo & finviz
 
 install dependencies with yarn
 
