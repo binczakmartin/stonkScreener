@@ -56,7 +56,15 @@ async function getTickers() {
   try {
     let tickerArray = [];
 
-    const response = await axios.get(tickerUrl);
+    const response = await axios.get(tickerUrl, {
+      headers: {
+        'User-Agent': 'YourAppName/1.0',  // Replace 'YourAppName/1.0' with your app's name and version
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      timeout: 20000
+    });
+
     for (let idx in response.data) {
       tickerArray.push(response.data[idx]);
     }
@@ -93,9 +101,13 @@ async function getYahooData(value) {
 }
 
 export function percentNum(value) {
-  let num = parseFloat(value.replace('%',''))
-  num = isNaN(num) ? 0 : num;
-  return num;
+  if (value) {
+    let num = parseFloat(value.replace('%',''))
+    num = isNaN(num) ? 0 : num;
+    return num;
+  } else {
+    return null;
+  }
 }
 
 export function num(value) {
@@ -104,11 +116,29 @@ export function num(value) {
   return num;
 }
 
+function extractPercentage(str) {
+  // Regular expression to match the number inside the parentheses
+  const regex = /\(([^)]+)%\)/;
+  const match = str.match(regex);
+  
+  if (match && match[1]) {
+    // Parse the extracted string as a float
+    return parseFloat(match[1]);
+  }
+  
+  // Return NaN if no match is found
+  return NaN;
+}
+
 export function percentShort(value) {
-  const tab = value.split(" / ");
-  let num = parseFloat(tab[0].replace('%',''));
-  num = isNaN(num) ? 0 : num;
-  return num;
+  if (value) {
+    const tab = value.split(" / ");
+    let num = parseFloat(tab[0].replace('%',''));
+    num = isNaN(num) ? 0 : num;
+    return num;
+  } else {
+    return null;
+  }
 }
 
 async function getFinvizData(value) {
@@ -116,6 +146,7 @@ async function getFinvizData(value) {
     if (!value?.ticker || value.exchange == 'Other OTC') {
       return resolve(value);
     }
+
     scrapFinviz(value?.ticker).then((data) => {
       value.index = data['Index'];
       value.merket_cap = data['Market Cap'];
@@ -123,8 +154,8 @@ async function getFinvizData(value) {
       value.sales = data['Sales'];
       value.book_sh = num(data['Book/sh']);
       value.cash_sh = num(data['Cash/sh']);
-      value.dividend = num(data['Dividend']);
-      value.dividend_yield = percentNum(data['Dividend %']);
+      value.dividend_yield = extractPercentage(data['Dividend TTM']);
+      value.est_dividend_yield = extractPercentage(data['Dividend Est.']);
       value.employes = parseInt(data['Employees']);
       value.option = data['Optionable'] == 'Yes' ? true : false ;
       value.short = data['Shortable'] == 'Yes' ? true : false ;
@@ -167,8 +198,9 @@ async function getFinvizData(value) {
       value.sma200_percent_change = percentNum(data['SMA200']);
       value.shares_oustandind = data['Shs Outstand'];
       value.shares_float = data['Shs Float'];
-      value.short_ratio = percentShort(data['Short Float / Ratio']);
-      value.short_interest = data['Short Interest'];
+      value.short_ratio = parseFloat(data['Short Ratio']);
+      value.short_interest = num(data['Short Interest']);
+      value.short_float = percentNum(data['Short Float']);
       value.target_price = num(data['Target Price']);
       value.range_52w = data['52W Range'];
       value.range_52w_percent_high = percentNum(data['52W High']);
@@ -189,7 +221,7 @@ async function getFinvizData(value) {
       value.prev_close = num(data['Prev Close']);
       value.price = num(data['Price']);
       value.change = num(data['Change']);
-      resolve(value)
+      resolve(value);
     }).catch((e) => {
       console.log('ERROR '+value.exchange+':'+value.ticker+' '+e.message);
       resolve(value);
@@ -220,8 +252,6 @@ async function getAllData() {
   let dataArray = [];
   let tickerChunks = await getChunk();
   let chunk = [];
-  
-  console.clear();
 
   for (chunk of tickerChunks) {
     await new Promise((resolve, reject) => {
@@ -246,8 +276,6 @@ async function getAllData() {
 
 async function sortTickersByDividends(dataArray) {
   let dividendTable = [];
-
-  console.clear();
   
   try {    
     dataArray = dataArray.filter((elem) => elem?.exchange != 'Other OTC'); // exclude Other OTC
@@ -257,10 +285,10 @@ async function sortTickersByDividends(dataArray) {
     for (let i = 0; i < 200; i++) {
       let obj = sortedArray[i];
       dividendTable.push({
-        ticker: obj.ticker,
-        name: obj.name,
-        exchange: obj.exchange,
-        short_ratio: obj.dividend_yield
+        ticker: obj?.ticker,
+        name: obj?.name,
+        exchange: obj?.exchange,
+        dividend_yield: obj?.dividend_yield
       });
     }
 
@@ -273,8 +301,6 @@ async function sortTickersByDividends(dataArray) {
 
 async function sortTickersByAnalyst(dataArray) {
   let dividendTable = [];
-
-  console.clear();
   
   try {    
     dataArray = dataArray.filter((elem) => elem?.exchange != 'Other OTC'); // exclude Other OTC
@@ -284,10 +310,10 @@ async function sortTickersByAnalyst(dataArray) {
     for (let i = 0; i < 200; i++) {
       let obj = sortedArray[i];
       dividendTable.push({
-        ticker: obj.ticker,
-        name: obj.name,
-        exchange: obj.exchange,
-        note: obj.analyst_note
+        ticker: obj?.ticker,
+        name: obj?.name,
+        exchange: obj?.exchange,
+        note: obj?.analyst_note
       });
     }
 
@@ -300,8 +326,6 @@ async function sortTickersByAnalyst(dataArray) {
 
 async function sortTickersByShort(dataArray) {
   let dividendTable = [];
-
-  console.clear();
   
   try {    
     dataArray = dataArray.filter((elem) => elem?.exchange != 'Other OTC'); // exclude Other OTC
@@ -311,10 +335,10 @@ async function sortTickersByShort(dataArray) {
     for (let i = 0; i < 200; i++) {
       let obj = sortedArray[i];
       dividendTable.push({
-        ticker: obj.ticker,
-        name: obj.name,
-        exchange: obj.exchange,
-        short_ratio: obj.short_ratio
+        ticker: obj?.ticker,
+        name: obj?.name,
+        exchange: obj?.exchange,
+        short_ratio: obj?.short_ratio
       });
     }
 
@@ -331,9 +355,12 @@ async function run() {
   process.setMaxListeners(0);
   await getAllData();
   const dataArray = JSON.parse(fs.readFileSync('./data/data.json'));
-  sortTickersByShort(dataArray);
-  sortTickersByDividends(dataArray);
-  sortTickersByAnalyst(dataArray);
+  console.log("____ SORT BY SHORT RATIO ____");
+  await sortTickersByShort(dataArray);
+  console.log("____ SORT BY DIVIDENDS YIELD ____");
+  await sortTickersByDividends(dataArray);
+  console.log("____ SORT BY ANALYST NOTE ____");
+  await sortTickersByAnalyst(dataArray);
 }
 
 run();

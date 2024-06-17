@@ -5,7 +5,7 @@ export const scrapFinviz = async (symbol) => {
     // Convert symbols like BRK.B to BRK-B
     symbol = symbol.replace(/\./g, "-");
 
-    const browser = await puppeteer.launch({args: ["--no-sandbox"], headless: true});
+    const browser = await puppeteer.launch({args: ["--no-sandbox"], headless: "new"});
     const page = await browser.newPage();
 
     await page.setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3205.0 Safari/537.36");
